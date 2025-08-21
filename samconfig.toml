@@ -1,0 +1,13 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "edge-resizer"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-mi4hufp773xj"
+s3_prefix = "edge-resizer"
+region = "us-east-1"
+confirm_changeset = false
+capabilities = "CAPABILITY_IAM"
+image_repositories = []
+[default.build.parameters]
+cache_dir="/tmp/.aws-sam/cache"

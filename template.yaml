@@ -1,0 +1,147 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  lambda-edge
+
+  Sample SAM Template for lambda-edge
+
+Globals:
+  Function:
+    Runtime: python3.13
+    Architectures:
+      - x86_64
+Resources:
+  ResizerViewerFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: src/viewer/
+      Handler: app.manipulate_request
+      Role: !GetAtt LambdaEdgeFunctionRole.Arn
+      Timeout: 5
+      MemorySize: 128
+
+  ResizerOriginFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: src/origin/
+      Handler: app.check_and_resize_if_required
+      Role: !GetAtt LambdaEdgeFunctionRole.Arn
+      Timeout: 30
+      MemorySize: 10240
+  LocalTestFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: src/origin/
+      Handler: app.test_local
+      Role: !GetAtt LambdaEdgeFunctionRole.Arn
+      Timeout: 30
+      MemorySize: 10240
+
+  V1ResizerOriginFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: src/origin/
+      Handler: app.check_and_resize_if_required_v1
+      Role: !GetAtt LambdaEdgeFunctionV1Role.Arn
+      Timeout: 30
+      MemorySize: 10240
+
+  LambdaEdgeFunctionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+        RoleName: ResizeLambdaEdgeFunctionRole
+        ManagedPolicyArns:
+            - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"     
+            - "arn:aws:iam::xxxxxxxxxxxxxx:policy/cloudwatchforedgelambda"
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            -
+              Sid: "AllowLambdaServiceToAssumeRole"
+              Effect: "Allow"
+              Action: 
+                - "sts:AssumeRole"
+              Principal:
+                Service: 
+                  - "lambda.amazonaws.com"
+                  - "edgelambda.amazonaws.com"
+        Path: "/"
+        Policies: 
+          - PolicyName: S3AllowPolicy
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action: 
+                    - s3:*
+                  Resource: arn:aws:s3:::xxxxxxxxxxxxxx-public/*
+          - PolicyName: ImageResizeLambdaFunctionPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - cloudfront:UpdateDistribution
+                    - cloudfront:CreateDistribution
+                    - iam:CreateServiceLinkedRole
+                    - lambda:EnableReplication
+                    - lambda:GetFunction
+                  Resource: "*"
+  LambdaEdgeFunctionV1Role:
+    Type: "AWS::IAM::Role"
+    Properties:
+        RoleName: ResizeLambdaEdgeFunctionRoleV1
+        ManagedPolicyArns:
+            - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+            - "arn:aws:iam::xxxxxxxxxxxxxxxx:policy/service-role/AWSLambdaEdgeExecutionRole-xxxxxxxxxxxxx"
+            - "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            -
+              Sid: "AllowLambdaServiceToAssumeRole"
+              Effect: "Allow"
+              Action: 
+                - "sts:AssumeRole"
+              Principal:
+                Service: 
+                  - "lambda.amazonaws.com"
+                  - "edgelambda.amazonaws.com"
+        Path: "/"
+        Policies: 
+          - PolicyName: S3AllowPolicyV1
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action: 
+                    - s3:*
+                  Resource: arn:aws:s3:::xxxxxxxxxxxx-public/*
+          - PolicyName: ImageResizeLambdaFunctionPolicyV1
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - cloudfront:UpdateDistribution
+                    - cloudfront:CreateDistribution
+                    - iam:CreateServiceLinkedRole
+                    - lambda:EnableReplication
+                    - lambda:GetFunction
+                  Resource: "*"
+          - PolicyName: CloudFrontLogger
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                  Resource: "arn:aws:logs:*:*:log-group:/aws/cloudfront/*"
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogStream
+                  Resource: "arn:aws:logs:*:*:log-group:/aws/cloudfront/*"
+                - Effect: Allow
+                  Action:
+                    - logs:PutLogEvents
+                  Resource: "arn:aws:logs:*:*:log-group:/aws/cloudfront/*"
